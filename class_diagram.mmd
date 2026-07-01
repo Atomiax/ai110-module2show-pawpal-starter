@@ -1,0 +1,84 @@
+classDiagram
+    class Owner {
+        +String name
+        +String email
+        +int dailyTimeAvailable
+        +List~String~ preferences
+        +List~Constraint~ constraints
+        +List~Pet~ pets
+        +addPet(pet: Pet)
+        +addConstraint(constraint: Constraint)
+    }
+
+    class Pet {
+        +String name
+        +String species
+        +String breed
+        +int age
+        +String healthNotes
+        +List~Task~ tasks
+        +addTask(task: Task)
+        +getPendingTasks() List~Task~
+    }
+
+    class Task {
+        +String name
+        +TaskType type
+        +int durationMinutes
+        +int priority
+        +String frequency
+        +String preferredTimeOfDay
+        +bool isCompleted
+        +complete()
+        +reset()
+    }
+
+    class Constraint {
+        +String description
+        +String affectedTimeSlot
+        +int blockedMinutes
+    }
+
+    class Scheduler {
+        +Owner owner
+        +List~ScheduledTask~ dailyPlan
+        +generatePlan() DailyPlan
+        +prioritizeTasks(tasks: List~Task~) List~Task~
+        +explainPlan() String
+        +getTotalScheduledTime() int
+    }
+
+    class DailyPlan {
+        +String date
+        +List~ScheduledTask~ scheduledTasks
+        +String reasoning
+        +int totalDuration
+        +summarize() String
+    }
+
+    class ScheduledTask {
+        +Task task
+        +Pet pet
+        +String scheduledTime
+        +bool isCompleted
+    }
+
+    class TaskType {
+        <<enumeration>>
+        WALK
+        FEEDING
+        MEDICATION
+        ENRICHMENT
+        GROOMING
+        VET_VISIT
+    }
+
+    Owner "1" --> "1..*" Pet : owns
+    Owner "1" --> "0..*" Constraint : has
+    Pet "1" --> "0..*" Task : requires
+    Task --> TaskType : typed as
+    Scheduler "1" --> "1" Owner : serves
+    Scheduler "1" --> "1" DailyPlan : produces
+    DailyPlan "1" --> "0..*" ScheduledTask : contains
+    ScheduledTask --> Task : wraps
+    ScheduledTask --> Pet : for
