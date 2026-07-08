@@ -64,18 +64,35 @@ Scheduled 'Grooming' for Mochi at 08:40 (priority 1).
 
 ```bash
 # Run the full test suite:
-pytest
+python -m pytest
 
 # Run with coverage:
 pytest --cov
 ```
 
+`tests/test_pawpal.py` covers:
+- **Task completion** — `complete()` flips `is_completed` and stamps `last_completed_date`.
+- **Task addition** — `Pet.add_task()` grows the pet's task list and links `Task.pet` back.
+- **Sorting correctness** — `Scheduler.sort_by_time()` returns scheduled tasks in chronological order.
+- **Recurrence logic** — completing a daily task via `Pet.mark_task_complete()` creates a new `Task` instance due the next day.
+- **Conflict detection** — `Scheduler.detect_conflicts()` flags two tasks for the same pet at the exact same time.
+- **Edge case** — a pet with no tasks returns an empty pending-tasks list instead of erroring.
+
 Sample test output:
 
 ```
-..                                                                       [100%]
-2 passed in 0.04s
+============================= test session starts =============================
+platform win32 -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\ousma\Downloads\ai110-module2show-pawpal-starter-main\ai110-module2show-pawpal-starter-main
+plugins: anyio-4.14.1
+collected 6 items
+
+tests\test_pawpal.py ......                                              [100%]
+
+============================== 6 passed in 0.26s ==============================
 ```
+
+**Confidence Level:** ⭐⭐⭐⭐☆ (4/5) — the core sorting, filtering, recurrence, and conflict-detection behaviors are covered and passing. What would push this to 5/5: tests around `Owner.get_available_minutes()` with multiple overlapping constraints, and a case where `generate_plan()` has to skip a low-priority task because higher-priority tasks used up all the available time.
 
 ## 📐 Smarter Scheduling
 
