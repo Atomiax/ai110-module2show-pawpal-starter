@@ -33,6 +33,8 @@ I chose the owner, task, pet, and scheduler classes, with subsequent ones like c
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+`Scheduler.detect_conflicts()` only flags two tasks for the same pet that share the *exact* `scheduled_time` string (e.g. both at "08:40"). It does not check whether one task's duration overlaps into another task's start time (e.g. a 30-minute walk at 08:00 running into a 08:20 feeding). This is reasonable for PawPal+ because `generate_plan()` already assigns times sequentially with no gaps or overlaps by construction, so exact-match conflicts only show up when a user (or the Streamlit UI) manually schedules tasks outside that flow. Catching true interval overlaps would need an interval-overlap check (comparing start/end ranges) instead of a simple dictionary lookup, which is more correct but adds complexity that isn't needed yet given how plans are actually generated today.
+
 ---
 
 ## 3. AI Collaboration

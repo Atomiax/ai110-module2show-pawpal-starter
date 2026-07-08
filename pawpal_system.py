@@ -5,6 +5,12 @@ from typing import List, Optional
 
 DAY_START_TIME = "08:00"
 
+FREQUENCY_INTERVALS = {
+    "daily": timedelta(days=1),
+    "weekly": timedelta(days=7),
+    "monthly": timedelta(days=30),
+}
+
 
 class TaskType(Enum):
     WALK = "walk"
@@ -45,6 +51,7 @@ class Task:
     pet: Optional["Pet"] = None
     is_completed: bool = False
     last_completed_date: Optional[str] = None
+    due_date: Optional[str] = None
 
     def complete(self) -> None:
         """Mark this task done and stamp today's date as its last completion."""
@@ -54,6 +61,25 @@ class Task:
     def reset(self) -> None:
         """Clear completion so a recurring task can be scheduled again."""
         self.is_completed = False
+
+    def create_next_occurrence(self) -> Optional["Task"]:
+        """Build the next instance of this task based on its frequency, or None if it doesn't recur."""
+        interval = FREQUENCY_INTERVALS.get(self.frequency)
+        if interval is None:
+            return None
+
+        base_date = date.fromisoformat(self.last_completed_date) if self.last_completed_date else date.today()
+        next_due = base_date + interval
+
+        return Task(
+            name=self.name,
+            type=self.type,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            frequency=self.frequency,
+            preferred_time_of_day=self.preferred_time_of_day,
+            due_date=next_due.isoformat(),
+        )
 
 
 @dataclass
@@ -73,8 +99,20 @@ class Pet:
         self.tasks.append(_task)
 
     def get_pending_tasks(self) -> List[Task]:
-        """Return the subset of this pet's tasks that are not yet completed."""
-        return [t for t in self.tasks if not t.is_completed]
+        """Return this pet's not-yet-completed tasks that are due today or earlier."""
+        today = date.today().isoformat()
+        return [
+            t for t in self.tasks
+            if not t.is_completed and (t.due_date is None or t.due_date <= today)
+        ]
+
+    def mark_task_complete(self, task: Task) -> Optional[Task]:
+        """Complete a task and, if it recurs, add its next occurrence to this pet's task list."""
+        task.complete()
+        next_task = task.create_next_occurrence()
+        if next_task is not None:
+            self.add_task(next_task)
+        return next_task
 
 
 @dataclass
@@ -151,6 +189,40 @@ class Scheduler:
     def prioritize_tasks(self, tasks: List[Task]) -> List[Task]:
         """Order tasks by highest priority first, then by shortest duration."""
         return sorted(tasks, key=lambda t: (-t.priority, t.duration_minutes))
+
+    def sort_by_time(self, scheduled_tasks: List[ScheduledTask]) -> List[ScheduledTask]:
+        """Sort scheduled tasks chronologically by their HH:MM scheduled_time."""
+        return sorted(scheduled_tasks, key=lambda st: datetime.strptime(st.scheduled_time, "%H:%M"))
+
+    def filter_tasks(
+        self,
+        tasks: List[Task],
+        pet_name: Optional[str] = None,
+        is_completed: Optional[bool] = None,
+    ) -> List[Task]:
+        """Filter a task list down to a given pet's name and/or completion status."""
+        result = tasks
+        if pet_name is not None:
+            result = [t for t in result if t.pet and t.pet.name == pet_name]
+        if is_completed is not None:
+            result = [t for t in result if t.is_completed == is_completed]
+        return result
+
+    def detect_conflicts(self, scheduled_tasks: List[ScheduledTask]) -> List[str]:
+        """Return a warning message for each pair of scheduled tasks sharing a pet and exact time."""
+        warnings: List[str] = []
+        seen: dict = {}
+        for st in scheduled_tasks:
+            pet_name = st.pet.name if st.pet else None
+            key = (pet_name, st.scheduled_time)
+            if key in seen:
+                warnings.append(
+                    f"Conflict: '{seen[key].task.name}' and '{st.task.name}' are both "
+                    f"scheduled for {pet_name or 'an unknown pet'} at {st.scheduled_time}."
+                )
+            else:
+                seen[key] = st
+        return warnings
 
     def generate_plan(self) -> DailyPlan:
         """Build and store today's schedule by greedily fitting prioritized tasks into available time."""
