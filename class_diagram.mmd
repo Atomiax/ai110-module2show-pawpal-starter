@@ -8,6 +8,7 @@ classDiagram
         +List~Pet~ pets
         +addPet(pet: Pet)
         +addConstraint(constraint: Constraint)
+        +getAvailableMinutes() int
     }
 
     class Pet {
@@ -27,21 +28,24 @@ classDiagram
         +int durationMinutes
         +int priority
         +String frequency
-        +String preferredTimeOfDay
+        +TimeSlot preferredTimeOfDay
+        +Pet pet
         +bool isCompleted
+        +String lastCompletedDate
         +complete()
         +reset()
     }
 
     class Constraint {
         +String description
-        +String affectedTimeSlot
+        +TimeSlot affectedTimeSlot
         +int blockedMinutes
+        +Pet affectedPet
     }
 
     class Scheduler {
         +Owner owner
-        +List~ScheduledTask~ dailyPlan
+        +DailyPlan currentPlan
         +generatePlan() DailyPlan
         +prioritizeTasks(tasks: List~Task~) List~Task~
         +explainPlan() String
@@ -52,7 +56,7 @@ classDiagram
         +String date
         +List~ScheduledTask~ scheduledTasks
         +String reasoning
-        +int totalDuration
+        +getTotalDuration() int
         +summarize() String
     }
 
@@ -73,12 +77,24 @@ classDiagram
         VET_VISIT
     }
 
+    class TimeSlot {
+        <<enumeration>>
+        MORNING
+        AFTERNOON
+        EVENING
+        NIGHT
+    }
+
     Owner "1" --> "1..*" Pet : owns
     Owner "1" --> "0..*" Constraint : has
-    Pet "1" --> "0..*" Task : requires
+    Pet "1" o-- "0..*" Task : owns
+    Task "0..*" --> "0..1" Pet : belongs to
     Task --> TaskType : typed as
+    Task --> TimeSlot : preferred slot
+    Constraint --> TimeSlot : blocks slot
+    Constraint "0..*" --> "0..1" Pet : restricts
     Scheduler "1" --> "1" Owner : serves
-    Scheduler "1" --> "1" DailyPlan : produces
+    Scheduler "1" --> "0..1" DailyPlan : holds current
     DailyPlan "1" --> "0..*" ScheduledTask : contains
     ScheduledTask --> Task : wraps
     ScheduledTask --> Pet : for

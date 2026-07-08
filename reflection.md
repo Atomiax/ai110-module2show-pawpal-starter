@@ -2,13 +2,20 @@
 
 ## 1. System Design
 
+** Core Actions**
+- Add your pet
+- Add Issues you have (whether for the pet, or constraints that interfere with caring for the pet)
+- Create Plan
+
+
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+owner has pets and constraints, task scheduler has 1 owner and multiple tasks
 - What classes did you include, and what responsibilities did you assign to each?
-
+I chose the owner, task, pet, and scheduler classes, with subsequent ones like constraints for the owner, daily plans linked to the schedueler
 **b. Design changes**
-
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
