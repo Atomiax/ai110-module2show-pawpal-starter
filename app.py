@@ -45,6 +45,7 @@ st.divider()
 st.subheader("2. Pets")
 
 owner = st.session_state.owner
+scheduler = Scheduler(owner) if owner is not None else None
 
 if owner is None:
     st.info("Create an owner above before adding pets.")
@@ -122,19 +123,37 @@ else:
     all_tasks = [t for p in owner.pets for t in p.tasks]
     if all_tasks:
         st.write("Current tasks:")
-        st.table(
-            [
-                {
-                    "pet": t.pet.name if t.pet else "",
-                    "title": t.name,
-                    "duration_minutes": t.duration_minutes,
-                    "priority": t.priority,
-                    "preferred_time": t.preferred_time_of_day.value,
-                    "completed": t.is_completed,
-                }
-                for t in all_tasks
-            ]
+
+        # Scheduler.filter_tasks() drives these two dropdowns so the table
+        # below always reflects a live filter instead of the full list.
+        col_a, col_b = st.columns(2)
+        with col_a:
+            pet_filter = st.selectbox("Filter by pet", ["All"] + [p.name for p in owner.pets])
+        with col_b:
+            status_filter = st.selectbox("Filter by status", ["All", "Pending", "Completed"])
+
+        filtered_tasks = scheduler.filter_tasks(
+            all_tasks,
+            pet_name=None if pet_filter == "All" else pet_filter,
+            is_completed=None if status_filter == "All" else status_filter == "Completed",
         )
+
+        if filtered_tasks:
+            st.table(
+                [
+                    {
+                        "pet": t.pet.name if t.pet else "",
+                        "title": t.name,
+                        "duration_minutes": t.duration_minutes,
+                        "priority": t.priority,
+                        "preferred_time": t.preferred_time_of_day.value,
+                        "completed": t.is_completed,
+                    }
+                    for t in filtered_tasks
+                ]
+            )
+        else:
+            st.info("No tasks match that filter.")
     else:
         st.info("No tasks yet. Add one above.")
 
@@ -145,17 +164,34 @@ if owner is None or not any(p.tasks for p in owner.pets):
     st.info("Add at least one task before generating a schedule.")
 else:
     if st.button("Generate schedule"):
-        # A fresh Scheduler per click is fine: all persistent state (the
-        # owner, pets, tasks) already lives in st.session_state.owner.
-        scheduler = Scheduler(owner)
         plan = scheduler.generate_plan()
+        # sort_by_time() and detect_conflicts() are the same Scheduler
+        # methods exercised in main.py — the UI just renders their output.
+        ordered_tasks = scheduler.sort_by_time(plan.scheduled_tasks)
+        conflicts = scheduler.detect_conflicts(ordered_tasks)
+
+        # Conflicts are the one thing an owner needs to notice immediately,
+        # so they're surfaced as st.warning banners above the schedule table
+        # rather than buried inside it or silently dropped.
+        if conflicts:
+            for warning in conflicts:
+                st.warning(warning)
+        else:
+            st.success("No scheduling conflicts detected.")
 
         st.markdown(f"**{plan.date} — total scheduled time: {plan.total_duration} min**")
-        for st_task in plan.scheduled_tasks:
-            st.write(
-                f"{st_task.scheduled_time} — {st_task.task.name} for {st_task.pet.name} "
-                f"({st_task.task.duration_minutes} min) [priority: {st_task.task.priority}]"
-            )
+        st.table(
+            [
+                {
+                    "time": st_task.scheduled_time,
+                    "pet": st_task.pet.name,
+                    "task": st_task.task.name,
+                    "duration_minutes": st_task.task.duration_minutes,
+                    "priority": st_task.task.priority,
+                }
+                for st_task in ordered_tasks
+            ]
+        )
 
         with st.expander("Why this plan?"):
             st.text(scheduler.explain_plan())

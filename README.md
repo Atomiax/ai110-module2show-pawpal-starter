@@ -42,6 +42,16 @@ pip install -r requirements.txt
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
 
+## ✨ Features
+
+- **Owner & pet profiles** — create an `Owner` with a daily time budget, and attach any number of `Pet`s to them.
+- **Task tracking** — add care tasks (walk, feeding, medication, grooming, etc.) to a pet with a duration, priority, and preferred time of day.
+- **Priority-based scheduling** — `Scheduler.generate_plan()` greedily fits the highest-priority, then shortest, tasks into the owner's available minutes, skipping and explaining any that don't fit.
+- **Sorting by time** — `Scheduler.sort_by_time()` puts a day's scheduled tasks back into chronological order regardless of the order they were generated in.
+- **Filtering** — `Scheduler.filter_tasks()` narrows a task list down to one pet and/or a completion status, used to drive the filter dropdowns in the Streamlit UI.
+- **Conflict warnings** — `Scheduler.detect_conflicts()` flags two tasks booked for the same pet at the same time and returns a plain-language warning instead of crashing.
+- **Daily recurrence** — completing a `daily`/`weekly`/`monthly` task via `Pet.mark_task_complete()` automatically creates its next occurrence, due on the correct future date.
+
 ## 🖥️ Sample Output
 
 Output from running `python main.py`:
@@ -105,12 +115,54 @@ tests\test_pawpal.py ......                                              [100%]
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+**UI features:**
+- A one-time owner setup form (name, email, daily time available in minutes).
+- A pet form that adds `Pet`s to the owner's household and lists them in a table.
+- A task form scoped to a chosen pet, with dropdowns for task type, priority, frequency, and preferred time of day.
+- A live-filterable task table (by pet, by pending/completed).
+- A "Generate schedule" button that produces the day's plan, conflict warnings, and a reasoning expander.
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+**Example workflow:**
+1. Run `streamlit run app.py`.
+2. Fill out the owner form (e.g. "Jordan", 90 minutes/day) and submit.
+3. Add a pet (e.g. "Biscuit", a dog) using the pet form.
+4. Add a task to Biscuit — e.g. "Morning walk", 30 minutes, high priority, morning.
+5. Add a second task, then use the pet/status filters to check the task table narrows correctly.
+6. Click "Generate schedule" to view today's plan.
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+**Key Scheduler behaviors shown in the UI:**
+- The schedule table is always in time order, because it's rendered from `scheduler.sort_by_time()`.
+- If two tasks land on the same pet and time, a `st.warning` banner appears above the table instead of the app crashing; a clean day shows a `st.success` banner instead.
+- The "Why this plan?" expander prints `scheduler.explain_plan()`, so an owner can see exactly why each task was scheduled (or skipped for lack of time).
+
+**CLI output** (from `python main.py`, which exercises sorting, filtering, recurrence, and conflict detection end-to-end):
+
+```
+Today's Schedule (2026-07-07):
+  08:00 - Feeding for Biscuit (10 min) [priority: 3]
+  08:10 - Morning walk for Biscuit (30 min) [priority: 3]
+  08:40 - Grooming for Mochi (20 min) [priority: 1]
+Total scheduled time: 60 min
+
+Reasoning:
+Available time today: 90 minutes (after subtracting 0 blocked minutes from constraints).
+Scheduled 'Feeding' for Biscuit at 08:00 (priority 3).
+Scheduled 'Morning walk' for Biscuit at 08:10 (priority 3).
+Scheduled 'Grooming' for Mochi at 08:40 (priority 1).
+
+--- Sorting demo (Scheduler.sort_by_time) ---
+Out of order: ['08:40', '08:00', '08:10']
+Sorted:       ['08:00', '08:10', '08:40']
+
+--- Filtering demo (Scheduler.filter_tasks) ---
+Biscuit's tasks: ['Morning walk', 'Feeding']
+Incomplete tasks: ['Morning walk', 'Feeding', 'Grooming']
+
+--- Recurring task demo (Pet.mark_task_complete) ---
+Completed 'Morning walk' on 2026-07-07.
+Next occurrence due 2026-07-08 (not scheduled again until then).
+Biscuit's pending tasks now: ['Feeding']
+
+--- Conflict detection demo (Scheduler.detect_conflicts) ---
+Conflict: 'Grooming' and 'Vet check-in call' are both scheduled for Mochi at 08:40.
+```
